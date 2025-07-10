@@ -13,7 +13,7 @@ import 'package:directory_monitor/directory_monitor.dart';
 import 'package:package_config/package_config.dart';
 import 'package:path/path.dart' as p;
 
-// FFI signature definitions
+// FFI signature definitions for native functions
 typedef StartMonitorFunc = Int32 Function(
   Pointer<Char> watchDir,
   Int64 port,
@@ -28,16 +28,18 @@ typedef StartMonitor = int Function(
 );
 typedef StopMonitor = void Function();
 
+/// A class that monitors directory changes using native platform APIs
 class DirectoryMonitor {
-  final String watchDir;
-  final bool recursive;
-  final bool debugMode;
-  late final DynamicLibrary dylib;
-  final List<String> ignoredFiles;
-  static late final matcher;
-  final List<String> allowedExtensions;
-  static late final String packageRoot;
-  // Factory method for asynchronous constructor
+  final String watchDir; // Directory path to monitor
+  final bool recursive; // Whether to monitor subdirectories recursively
+  final bool debugMode; // Enable debug logging
+  late final DynamicLibrary dylib; // Native library reference
+  final List<String> ignoredFiles; // List of files/paths to ignore
+  static late final PathMatcher matcher; // Path matching utility
+  final List<String> allowedExtensions; // Allowed file extensions
+  static late final String packageRoot; // Root path of the package
+
+  /// Factory method for asynchronous constructor
   static Future<DirectoryMonitor> create({
     String watchDir = '',
     bool recursive = false,
@@ -80,7 +82,7 @@ class DirectoryMonitor {
     }
   }
 
-  /// listen event
+  /// Starts listening to directory changes and invokes callback for each event
   void listen(Function(DirectoryMonitorEvent) event) {
     final receivePort = ReceivePort();
     receivePort.listen((dynamic message) {
@@ -89,33 +91,45 @@ class DirectoryMonitor {
           DirectoryMonitorAction.values[message[0]];
       final String path = message[1];
       String sourcePath = '';
+
+      // Determine entity type (file/directory)
       FileSystemEntityType entityType = FileSystemEntity.typeSync(path);
       if (action == DirectoryMonitorAction.delete) {
+        // For delete actions, we need to guess the type
         if (isLikelyFile(path)) {
           entityType = FileSystemEntityType.file;
         } else {
           entityType = FileSystemEntityType.directory;
         }
       }
+
+      // Check if file should be ignored based on extension or path patterns
       if (entityType == FileSystemEntityType.file) {
         shouldIgnore = !matcher.shouldAllowedExtensions(path);
         if (!shouldIgnore) {
           shouldIgnore = matcher.shouldIgnore(path);
         }
       }
+
       if (!shouldIgnore) {
         if (action == DirectoryMonitorAction.move) {
           sourcePath = message[2];
         }
+
+        // Convert paths to relative format
         String parentPathx = p.relative(watchDir);
         String pathx = p.relative(path, from: watchDir);
         String sourcePathx =
             sourcePath != '' ? p.relative(sourcePath, from: watchDir) : '';
+
+        // Normalize paths for Windows
         if (Platform.isWindows) {
           pathx = pathx.replaceAll(r'\', '/');
           sourcePathx = sourcePathx.replaceAll(r'\', '/');
           parentPathx = parentPathx.replaceAll(r'\', '/');
         }
+
+        // Create and dispatch event
         final DirectoryMonitorEvent messageEvent = DirectoryMonitorEvent(
           action: action,
           type: entityType,
@@ -125,6 +139,8 @@ class DirectoryMonitor {
           timestamp: DateTime.now().millisecondsSinceEpoch,
         );
         event(messageEvent);
+
+        // Handle directory-specific events
         if (entityType == FileSystemEntityType.directory) {
           if (action == DirectoryMonitorAction.move ||
               action == DirectoryMonitorAction.create) {
@@ -139,6 +155,7 @@ class DirectoryMonitor {
       }
     });
 
+    // Lookup and call native start_monitor function
     final StartMonitor startMonitor =
         dylib.lookupFunction<StartMonitorFunc, StartMonitor>('start_monitor');
     final watchDirPtr = watchDir.toNativeUtf8();
@@ -155,7 +172,7 @@ class DirectoryMonitor {
     }
   }
 
-  ///
+  /// Recursively processes directory contents for move/create events
   void _watchDirectory({
     required DirectoryMonitorAction action,
     required String dirPath,
@@ -168,6 +185,7 @@ class DirectoryMonitor {
       return;
     }
 
+    // Process all entities in the directory
     for (final FileSystemEntity entity
         in directory.listSync(recursive: recursive)) {
       if (entity.path == '.' || entity.path == '..' || entity.path == '') {
@@ -181,6 +199,7 @@ class DirectoryMonitor {
           continue;
         }
 
+        // Check if file should be ignored
         bool shouldIgnore = !matcher.shouldAllowedExtensions(entity.path);
         if (!shouldIgnore) {
           shouldIgnore = matcher.shouldIgnore(entity.path);
@@ -188,6 +207,8 @@ class DirectoryMonitor {
         if (shouldIgnore) {
           continue;
         }
+
+        // Prepare paths for event
         String sourcePathx = '';
         String parentPathx = p.relative(watchDir);
         String pathx = p.relative(entity.path, from: watchDir);
@@ -197,11 +218,15 @@ class DirectoryMonitor {
               entity.path.replaceFirst(dirPath, sourcePath),
               from: watchDir);
         }
+
+        // Normalize paths for Windows
         if (Platform.isWindows) {
           pathx = pathx.replaceAll(r'\', '/');
           sourcePathx = sourcePathx.replaceAll(r'\', '/');
           parentPathx = parentPathx.replaceAll(r'\', '/');
         }
+
+        // Create and dispatch event
         final DirectoryMonitorEvent messageEvent = DirectoryMonitorEvent(
           action: action,
           type: entityType,
@@ -224,14 +249,14 @@ class DirectoryMonitor {
     }
   }
 
-  /// stop event
+  /// Stops the directory monitoring
   void stop() {
     final StopMonitor stopWatcher =
         dylib.lookupFunction<Void Function(), StopMonitor>('stop_monitor');
     stopWatcher();
-  } // Returns the path to the dynamic library based on platform and architecture
+  }
 
-  /// Returns true if the path is likely a file
+  /// Returns true if the path is likely a file (based on extension or path format)
   bool isLikelyFile(String path) {
     String ext = p.extension(path).toLowerCase();
     if (path.endsWith(p.separator) || path.endsWith('/')) {
@@ -243,6 +268,7 @@ class DirectoryMonitor {
     return ext.isEmpty ? false : true;
   }
 
+  /// Gets the platform-specific path to the native library
   Future<String> _getLibraryPath() async {
     // Define platform-specific library extensions
     const platformExtensions = {
@@ -254,8 +280,8 @@ class DirectoryMonitor {
     // Define supported architectures per platform
     const archMappings = {
       'macOS': {'ARM64': 'arm64', 'X86_64': 'x86_64'},
-      'windows': {'ARM64': 'arm64', 'X86_64': 'x86_64', 'X86': 'x86'},
-      'linux': {'ARM64': 'arm64', 'X86_64': 'x86_64'},
+      'windows': {'ARM64': 'arm64', 'X86_64': 'x86_64'},
+      'linux': {'ARM64': 'arm64', 'X86_64': 'x86_64', 'X86': 'i686'},
     };
 
     // Determine platform
@@ -279,13 +305,13 @@ class DirectoryMonitor {
 
     // Construct library path
     final extension = platformExtensions[platform]!;
-    final arch = archMap[cpuType]!; // Join the path components
-    // Join with the desired library path
+    final arch = archMap[cpuType]!;
     String relativePath = p.join('libs', 'libDW_$arch.$extension');
     String absolutePath = p.absolute(packageRoot, relativePath);
     return absolutePath;
   }
 
+  /// Gets the root directory of the package
   static Future<String> _getPackageRoot() async {
     PackageConfig? packageConfig = await findPackageConfig(Directory.current);
     if (packageConfig == null) {
@@ -299,7 +325,7 @@ class DirectoryMonitor {
     return package.root.toFilePath();
   }
 
-  // Retrieves the CPU architecture
+  /// Detects the CPU architecture of the current platform
   Future<String?> _getCPUType() async {
     if (Platform.isMacOS) {
       // macOS uses sysctl
@@ -325,7 +351,6 @@ class DirectoryMonitor {
           Platform.environment['PROCESSOR_ARCHITECTURE']?.toUpperCase();
       if (arch == 'AMD64') return 'X86_64';
       if (arch == 'ARM64') return 'ARM64';
-      if (arch == 'X86') return 'X86';
       try {
         final result =
             await Process.run('wmic', ['cpu', 'get', 'architecture']);
@@ -333,7 +358,6 @@ class DirectoryMonitor {
           final output = result.stdout.toString().toLowerCase();
           if (output.contains('9')) return 'X86_64'; // 9 indicates x64
           if (output.contains('12')) return 'ARM64'; // 12 indicates ARM64
-          if (output.contains('0')) return 'X86'; // 0 indicates x86
         }
       } catch (e) {
         print('Failed to retrieve Windows CPU architecture: $e');
@@ -345,8 +369,9 @@ class DirectoryMonitor {
         if (result.exitCode == 0) {
           final arch = result.stdout.trim().toLowerCase();
           if (arch.contains('x86_64')) return 'X86_64';
-          if (arch.contains('aarch64') || arch.contains('arm64'))
+          if (arch.contains('aarch64') || arch.contains('arm64')) {
             return 'ARM64';
+          }
           if (arch.contains('arm')) return 'ARM';
         }
       } catch (e) {

@@ -1,6 +1,6 @@
 name: directory_monitor
-description: A cross-platform file system watcher.
-version: 1.0.0
+description: Directory Monitor is a directory monitoring tool that can monitor file and directory changes in a directory and execute corresponding callback functions..
+version: 1.0.1
 homepage: https://github.com/musichubpub/directory_monitor
 repository: https://github.com/musichubpub/directory_monitor
 issue_tracker: https://github.com/musichubpub/directory_monitor/issues
@@ -13,3 +13,4 @@ dependencies:
   package_config: ^2.1.0
 dev_dependencies:
   test: ^1.17.1
+  lints: ^4.0.0
