@@ -64,10 +64,10 @@ jobs:
 
       - name: Verify macOS dylib architecture
         run: |
-          file libs/libWatcherPlus_${{ matrix.arch }}.dylib
+          file libs/libDW_${{ matrix.arch }}.dylib
 
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: WatcherPlus-${{ matrix.platform }}-${{ matrix.arch }}
-          path: libs/libWatcherPlus_${{ matrix.arch }}.* 
+          name: libDW-${{ matrix.platform }}-${{ matrix.arch }}
+          path: libs/libDW_${{ matrix.arch }}.* 

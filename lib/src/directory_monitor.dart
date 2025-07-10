@@ -1,4 +1,11 @@
-import 'dart:io' show Directory, File, FileSystemEntity, FileSystemEntityType, Platform, Process;
+import 'dart:io'
+    show
+        Directory,
+        File,
+        FileSystemEntity,
+        FileSystemEntityType,
+        Platform,
+        Process;
 import 'dart:isolate';
 import 'package:ffi/ffi.dart';
 import 'dart:ffi';
@@ -78,7 +85,8 @@ class DirectoryMonitor {
     final receivePort = ReceivePort();
     receivePort.listen((dynamic message) {
       bool shouldIgnore = false;
-      final DirectoryMonitorAction action = DirectoryMonitorAction.values[message[0]];
+      final DirectoryMonitorAction action =
+          DirectoryMonitorAction.values[message[0]];
       final String path = message[1];
       String sourcePath = '';
       FileSystemEntityType entityType = FileSystemEntity.typeSync(path);
@@ -101,7 +109,8 @@ class DirectoryMonitor {
         }
         String parentPathx = p.relative(watchDir);
         String pathx = p.relative(path, from: watchDir);
-        String sourcePathx = sourcePath != '' ? p.relative(sourcePath, from: watchDir) : '';
+        String sourcePathx =
+            sourcePath != '' ? p.relative(sourcePath, from: watchDir) : '';
         if (Platform.isWindows) {
           pathx = pathx.replaceAll(r'\', '/');
           sourcePathx = sourcePathx.replaceAll(r'\', '/');
@@ -117,7 +126,8 @@ class DirectoryMonitor {
         );
         event(messageEvent);
         if (entityType == FileSystemEntityType.directory) {
-          if (action == DirectoryMonitorAction.move || action == DirectoryMonitorAction.create) {
+          if (action == DirectoryMonitorAction.move ||
+              action == DirectoryMonitorAction.create) {
             _watchDirectory(
               action: action,
               dirPath: path,
@@ -129,7 +139,8 @@ class DirectoryMonitor {
       }
     });
 
-    final StartMonitor startMonitor = dylib.lookupFunction<StartMonitorFunc, StartMonitor>('start_monitor');
+    final StartMonitor startMonitor =
+        dylib.lookupFunction<StartMonitorFunc, StartMonitor>('start_monitor');
     final watchDirPtr = watchDir.toNativeUtf8();
     final result = startMonitor(
       watchDirPtr as Pointer<Char>,
@@ -157,7 +168,8 @@ class DirectoryMonitor {
       return;
     }
 
-    for (final FileSystemEntity entity in directory.listSync(recursive: recursive)) {
+    for (final FileSystemEntity entity
+        in directory.listSync(recursive: recursive)) {
       if (entity.path == '.' || entity.path == '..' || entity.path == '') {
         continue;
       }
@@ -181,7 +193,9 @@ class DirectoryMonitor {
         String pathx = p.relative(entity.path, from: watchDir);
 
         if (action == DirectoryMonitorAction.move) {
-          sourcePathx = p.relative(entity.path.replaceFirst(dirPath, sourcePath), from: watchDir);
+          sourcePathx = p.relative(
+              entity.path.replaceFirst(dirPath, sourcePath),
+              from: watchDir);
         }
         if (Platform.isWindows) {
           pathx = pathx.replaceAll(r'\', '/');
@@ -212,7 +226,8 @@ class DirectoryMonitor {
 
   /// stop event
   void stop() {
-    final StopMonitor stopWatcher = dylib.lookupFunction<Void Function(), StopMonitor>('stop_monitor');
+    final StopMonitor stopWatcher =
+        dylib.lookupFunction<Void Function(), StopMonitor>('stop_monitor');
     stopWatcher();
   } // Returns the path to the dynamic library based on platform and architecture
 
@@ -306,12 +321,14 @@ class DirectoryMonitor {
       }
     } else if (Platform.isWindows) {
       // Windows uses environment variable or wmic command
-      final arch = Platform.environment['PROCESSOR_ARCHITECTURE']?.toUpperCase();
+      final arch =
+          Platform.environment['PROCESSOR_ARCHITECTURE']?.toUpperCase();
       if (arch == 'AMD64') return 'X86_64';
       if (arch == 'ARM64') return 'ARM64';
       if (arch == 'X86') return 'X86';
       try {
-        final result = await Process.run('wmic', ['cpu', 'get', 'architecture']);
+        final result =
+            await Process.run('wmic', ['cpu', 'get', 'architecture']);
         if (result.exitCode == 0) {
           final output = result.stdout.toString().toLowerCase();
           if (output.contains('9')) return 'X86_64'; // 9 indicates x64
@@ -328,7 +345,8 @@ class DirectoryMonitor {
         if (result.exitCode == 0) {
           final arch = result.stdout.trim().toLowerCase();
           if (arch.contains('x86_64')) return 'X86_64';
-          if (arch.contains('aarch64') || arch.contains('arm64')) return 'ARM64';
+          if (arch.contains('aarch64') || arch.contains('arm64'))
+            return 'ARM64';
           if (arch.contains('arm')) return 'ARM';
         }
       } catch (e) {

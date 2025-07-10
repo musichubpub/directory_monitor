@@ -68,10 +68,10 @@ jobs:
       - name: Verify Windows DLL architecture
         shell: bash
         run: |
-          objdump -f libs/libWatcherPlus_${{ matrix.arch }}.dll | grep "file format"
+          objdump -f libs/libDW_${{ matrix.arch }}.dll | grep "file format"
 
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: WatcherPlus-${{ matrix.platform }}-${{ matrix.arch }}
-          path: libs/libWatcherPlus_${{ matrix.arch }}.* 
+          name: libDW-${{ matrix.platform }}-${{ matrix.arch }}
+          path: libs/libDW_${{ matrix.arch }}.* 

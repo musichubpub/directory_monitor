@@ -41,7 +41,9 @@ class PathMatcher {
     }
 
     // 2. Handle hidden files (like .DS_Store)
-    if (pattern.startsWith('.') && !pattern.contains('/') && !pattern.contains('*')) {
+    if (pattern.startsWith('.') &&
+        !pattern.contains('/') &&
+        !pattern.contains('*')) {
       final fileName = path.split('/').last;
       return fileName == pattern;
     }

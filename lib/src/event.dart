@@ -20,5 +20,6 @@ class DirectoryMonitorEvent {
   });
 
   @override
-  String toString() => 'Event(action: $action,parentPath:$parentPath  path: $path, sourcePath: $sourcePath,type: ${type},timestamp: $timestamp)';
+  String toString() =>
+      'Event(action: $action,parentPath:$parentPath  path: $path, sourcePath: $sourcePath,type: ${type},timestamp: $timestamp)';
 }
