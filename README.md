@@ -1,5 +1,7 @@
 ## Directory Monitor
 
+[![Pub](https://img.shields.io/pub/v/directory_monitor.svg)](https://pub.dev/packages/directory_monitor)
+
 Directory Monitor is a directory monitoring tool that can monitor file and directory changes in a directory and execute corresponding callback functions.
 
 Dart uses ffi to implement dmon extension
