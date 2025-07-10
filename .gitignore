@@ -1,0 +1,25 @@
+# https://dart.dev/guides/libraries/private-files
+# Created by `dart pub`
+.dart_tool/
+.DS_Store
+macos/cmake_install.cmake
+macos/Makefile
+macos/CMakeFiles/
+.vscode/
+macos/CMakeCache.txt
+pubspec.lock
+test/watcher_dir
+watcher_dir
+CMakeFiles/
+Makefile
+cmake_install.cmake
+CMakeCache.txt
+/libs/*
+.vs/
+out/
+out
+build.ninja
+.ninja_log
+.ninja_deps
+libWatcherPlus.dll.a
+libDW_x86_64.dll.a

@@ -1,0 +1,15 @@
+name: directory_monitor
+description: A cross-platform file system watcher.
+version: 1.0.0
+homepage: https://github.com/musichubpub/directory_monitor
+repository: https://github.com/musichubpub/directory_monitor
+issue_tracker: https://github.com/musichubpub/directory_monitor/issues
+environment:
+  sdk: '>=3.1.0 <4.0.0'
+
+dependencies:
+  ffi: ^2.1.4
+  path: ^1.9.1
+  package_config: ^2.1.0
+dev_dependencies:
+  test: ^1.17.1

@@ -1,0 +1,87 @@
+name: Build for Linux
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runs-on }}
+
+    strategy:
+      matrix:
+        include:
+          - platform: Linux
+            target_platform: LINUX
+            arch: x86_64
+            runs-on: ubuntu-latest
+          - platform: Linux
+            target_platform: LINUX
+            arch: arm64
+            runs-on: ubuntu-latest
+          - platform: Linux
+            target_platform: LINUX
+            arch: i686
+            runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Dart
+        id: setup-dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+        env:
+          DART_HOME: ${{ steps.setup-dart.outputs.dart-sdk-path }}
+
+      - name: Set up CMake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.29'
+
+      - name: Install dependencies (Linux)
+        if: matrix.platform == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu gcc-i686-linux-gnu g++-i686-linux-gnu
+
+      - name: Debug Compilers
+        shell: bash
+        run: |
+            gcc --version || echo "gcc missing"
+            aarch64-linux-gnu-gcc --version || echo "ARM64 compiler missing"
+            i686-linux-gnu-gcc --version || echo "x86 compiler missing"
+
+      - name: Configure Linux CMake
+        shell: bash
+        run: |
+          cmake \
+            -DTARGET_PLATFORM=${{ matrix.target_platform }} \
+            -DTARGET_ARCH=${{ matrix.arch }} \
+            -DDART_SDK_PATH="${{ env.DART_HOME || '/usr/lib/dart' }}" \
+            -DCMAKE_C_COMPILER=${{ matrix.arch == 'x86_64' && 'gcc' || matrix.arch == 'arm64' && 'aarch64-linux-gnu-gcc' || 'i686-linux-gnu-gcc' }} \
+            . || { echo "CMake failed for Linux"; cat CMakeFiles/CMakeError.log; exit 1; }
+        env:
+          DART_HOME: ${{ env.DART_HOME }}
+
+      - name: Build
+        shell: bash
+        run: |
+          make
+
+      - name: Verify Linux library architecture
+        run: |
+          file libs/libWatcherPlus_${{ matrix.arch }}.so
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: WatcherPlus-${{ matrix.platform }}-${{ matrix.arch }}
+          path: libs/libWatcherPlus_${{ matrix.arch }}.* 

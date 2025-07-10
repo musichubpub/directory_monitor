@@ -1,0 +1,77 @@
+name: Build for Windows
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runs-on }}
+
+    strategy:
+      matrix:
+        include:
+          - platform: Windows
+            target_platform: WINDOWS
+            arch: x86_64
+            runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+        # Expose Dart SDK path for later steps
+        env:
+          DART_HOME: ${{ steps.setup-dart.outputs.dart-sdk-path }}
+
+      - name: Set up CMake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.29'
+
+      - name: Install Ninja
+        run: |
+          choco install ninja -y
+          echo "C:\ProgramData\chocolatey\bin" >> $GITHUB_PATH
+
+      - name: Install dependencies (Windows)
+        run: |
+          choco install mingw --version 8.1.0 -y
+          echo "C:\ProgramData\mingw64\native\mingw64\bin" >> $GITHUB_PATH
+
+      - name: Configure Windows CMake
+        shell: bash
+        run: |
+          cmake \
+            -G 'Ninja' \
+            -DTARGET_PLATFORM=${{ matrix.target_platform }} \
+            -DTARGET_ARCH=${{ matrix.arch }} \
+            -DDART_SDK_PATH="${{ env.DART_HOME || '/usr/lib/dart' }}" \
+            -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+            .
+        env:
+          DART_HOME: ${{ env.DART_HOME }}
+          
+      - name: Build
+        shell: bash
+        run: |
+          ninja
+
+      - name: Verify Windows DLL architecture
+        shell: bash
+        run: |
+          objdump -f libs/libWatcherPlus_${{ matrix.arch }}.dll | grep "file format"
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: WatcherPlus-${{ matrix.platform }}-${{ matrix.arch }}
+          path: libs/libWatcherPlus_${{ matrix.arch }}.* 
